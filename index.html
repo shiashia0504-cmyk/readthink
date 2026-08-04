@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>독서생각 · ReadThink</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pink-bg: #FFF4F7;
+    --pink-bg-deep: #FFE9EF;
+    --card: #FFFFFF;
+    --pink-soft: #FFD9E5;
+    --pink-line: #FFC7D6;
+    --indigo: #4338CA;
+    --indigo-hover: #372DB0;
+    --indigo-deep: #2E2A63;
+    --indigo-soft: #E7E6FB;
+    --text-main: #2E2A3A;
+    --text-muted: #8B7F8C;
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --shadow: 0 10px 30px -12px rgba(67, 56, 202, 0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    background: var(--pink-bg);
+    color: var(--text-main);
+    min-height:100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .display{ font-family: 'Gowun Batang', serif; }
+
+  /* ===== App shell ===== */
+  #app{
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+
+  header.topbar{
+    padding: 22px 22px 14px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+  }
+  header.topbar .logo{
+    font-family:'Gowun Batang', serif;
+    font-size: 22px;
+    font-weight:700;
+    color: var(--indigo-deep);
+    letter-spacing: -0.3px;
+  }
+  header.topbar .logo span{ color: var(--indigo); }
+  header.topbar .step-label{
+    font-size:12px;
+    color:var(--text-muted);
+    font-weight:600;
+    letter-spacing:0.3px;
+  }
+
+  /* ===== Bookmark ribbon progress (signature element) ===== */
+  .ribbon-track{
+    display:flex;
+    gap:6px;
+    padding: 0 22px 18px;
+  }
+  .ribbon-notch{
+    flex:1;
+    height:6px;
+    border-radius:6px;
+    background: var(--pink-soft);
+    position:relative;
+    overflow:hidden;
+  }
+  .ribbon-notch .fill{
+    position:absolute; inset:0;
+    background: linear-gradient(90deg, var(--indigo), #6D5EF0);
+    width:0%;
+    transition: width .5s cubic-bezier(.4,0,.2,1);
+    border-radius:6px;
+  }
+  .ribbon-notch.done .fill{ width:100%; }
+  .ribbon-notch.active .fill{ width:55%; }
+
+  main{
+    flex:1;
+    padding: 4px 22px 120px;
+  }
+
+  .view{ display:none; animation: fadeUp .45s ease; }
+  .view.active{ display:block; }
+  @keyframes fadeUp{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+
+  h1.step-title{
+    font-family:'Gowun Batang', serif;
+    font-size: 26px;
+    line-height:1.35;
+    color: var(--indigo-deep);
+    margin: 6px 0 6px;
+  }
+  p.step-sub{
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0 0 26px;
+    line-height:1.6;
+  }
+
+  .card{
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom:16px;
+  }
+
+  /* ===== Form elements ===== */
+  label.field-label{
+    display:block;
+    font-size:13px;
+    font-weight:700;
+    color: var(--indigo-deep);
+    margin: 18px 0 8px;
+  }
+  label.field-label:first-child{ margin-top:0; }
+  label.field-label .req{ color:#E8547C; font-weight:700; margin-left:2px; }
+  label.field-label .opt{ color:var(--text-muted); font-weight:500; font-size:11px; margin-left:6px; }
+
+  .pill-group{ display:flex; gap:8px; flex-wrap:wrap; }
+  .pill{
+    flex:1;
+    min-width: 90px;
+    text-align:center;
+    padding: 13px 10px;
+    border-radius: 999px;
+    border: 1.5px solid var(--pink-line);
+    background: #fff;
+    color: var(--text-main);
+    font-size: 13.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition: all .18s ease;
+    user-select:none;
+  }
+  .pill:hover{ border-color: var(--indigo); }
+  .pill.selected{
+    background: var(--indigo);
+    border-color: var(--indigo);
+    color:#fff;
+    box-shadow: 0 6px 16px -4px rgba(67,56,202,.45);
+  }
+
+  input[type=email], input[type=text]{
+    width:100%;
+    padding: 13px 14px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--pink-line);
+    font-size: 14.5px;
+    font-family:inherit;
+    background:#fff;
+    outline:none;
+    transition: border-color .15s ease;
+  }
+  input[type=email]:focus, input[type=text]:focus{ border-color: var(--indigo); }
+
+  .checkbox-row{
+    display:flex; align-items:center; gap:10px;
+    margin-top:12px;
+    padding: 12px 14px;
+    background: var(--indigo-soft);
+    border-radius: var(--radius-md);
+  }
+  .checkbox-row input{ width:18px; height:18px; accent-color: var(--indigo); }
+  .checkbox-row label{ font-size:13.5px; color: var(--indigo-deep); font-weight:600; }
+
+  /* ===== Buttons ===== */
+  .btn-primary{
+    width:100%;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    border:none;
+    background: var(--indigo);
+    color:#fff;
+    font-size:15.5px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .btn-primary:hover{ background: var(--indigo-hover); }
+  .btn-primary:active{ transform: scale(0.98); }
+  .btn-primary:disabled{ background:#C9C6E8; cursor:not-allowed; }
+  .btn-ghost{
+    width:100%;
+    padding:14px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--pink-line);
+    background: transparent;
+    color: var(--indigo-deep);
+    font-size:14.5px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+    margin-top:10px;
+  }
+
+  .bottom-bar{
+    position:sticky;
+    bottom:0;
+    background: linear-gradient(180deg, rgba(255,244,247,0) 0%, var(--pink-bg) 30%);
+    padding: 22px 22px 26px;
+    max-width:480px;
+    margin:0 auto;
+  }
+
+  /* ===== Book search ===== */
+  .search-row{ display:flex; gap:8px; }
+  .search-row input{ flex:1; }
+  .search-row button{
+    padding: 0 18px;
+    border-radius: var(--radius-md);
+    border:none;
+    background: var(--indigo-deep);
+    color:#fff;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .book-result{
+    display:flex; gap:12px;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    cursor:pointer;
+    border: 1.5px solid transparent;
+    transition: all .15s ease;
+    margin-top:8px;
+  }
+  .book-result:hover{ background: var(--pink-bg-deep); }
+  .book-result.selected{ border-color: var(--indigo); background: var(--indigo-soft); }
+  .book-cover{
+    width:46px; height:64px;
+    border-radius:6px;
+    background: linear-gradient(135deg, var(--pink-soft), var(--indigo-soft));
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px;
+  }
+  .book-info .title{ font-weight:700; font-size:14px; }
+  .book-info .author{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .book-info .cat{
+    display:inline-block; margin-top:6px;
+    font-size:10.5px; font-weight:700; color: var(--indigo);
+    background: var(--indigo-soft); padding:2px 8px; border-radius:999px;
+  }
+
+  /* ===== Questions ===== */
+  .q-block{ margin-bottom:18px; }
+  .q-num{
+    font-family:'Gowun Batang', serif;
+    font-size: 13px; color: var(--indigo);
+    font-weight:700; margin-bottom:6px; display:block;
+  }
+  .q-text{ font-size:15px; font-weight:600; line-height:1.5; margin-bottom:10px; }
+  textarea{
+    width:100%; min-height: 78px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--pink-line);
+    font-family:inherit; font-size:14px;
+    resize: vertical; outline:none;
+  }
+  textarea:focus{ border-color: var(--indigo); }
+
+  .sr-toggle{
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--indigo-soft); padding:12px 14px; border-radius: var(--radius-md);
+    margin-bottom:16px;
+  }
+  .sr-toggle .label{ font-size:13px; font-weight:700; color:var(--indigo-deep); }
+  .sr-toggle .desc{ font-size:11px; color:var(--text-muted); margin-top:2px; }
+  .switch{ position:relative; width:42px; height:24px; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .slider{
+    position:absolute; inset:0; background:#D9D6EE; border-radius:999px; cursor:pointer; transition:.2s;
+  }
+  .switch .slider:before{
+    content:""; position:absolute; width:18px; height:18px; left:3px; top:3px;
+    background:#fff; border-radius:50%; transition:.2s;
+  }
+  .switch input:checked + .slider{ background: var(--indigo); }
+  .switch input:checked + .slider:before{ transform: translateX(18px); }
+
+  /* ===== AI draft ===== */
+  .ai-status{
+    display:flex; align-items:center; gap:10px;
+    padding: 16px; background: var(--indigo-soft); border-radius: var(--radius-md);
+    font-size:13.5px; font-weight:700; color: var(--indigo-deep); margin-bottom:16px;
+  }
+  .dot-spin{
+    width:16px; height:16px; border-radius:50%;
+    border: 2.5px solid #C9C6E8; border-top-color: var(--indigo);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+  .note-inline{
+    font-size:11.5px; color: var(--text-muted); margin-top:6px; line-height:1.5;
+  }
+
+  /* ===== Card news preview ===== */
+  .cardnews{
+    background:#fff; border-radius: var(--radius-lg);
+    overflow:hidden; box-shadow: var(--shadow);
+    border: 1px solid var(--pink-line);
+  }
+  .cardnews .cn-top{
+    background: linear-gradient(135deg, var(--indigo-deep), var(--indigo));
+    padding: 22px 20px;
+    display:flex; gap:14px; align-items:center;
+    color:#fff;
+  }
+  .cardnews .cn-cover{
+    width:52px; height:72px; border-radius:6px;
+    background: rgba(255,255,255,.18);
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    flex-shrink:0;
+  }
+  .cardnews .cn-title{ font-family:'Gowun Batang', serif; font-size:17px; font-weight:700; line-height:1.35; }
+  .cardnews .cn-author{ font-size:12px; opacity:.8; margin-top:4px; }
+  .cardnews .cn-badge{
+    display:inline-block; margin-top:8px; font-size:10.5px; font-weight:700;
+    background: rgba(255,255,255,.2); padding:3px 9px; border-radius:999px;
+  }
+  .cardnews .cn-body{ padding: 20px; }
+  .cardnews .cn-body p{ font-size:13.5px; line-height:1.8; color: var(--text-main); margin:0; white-space:pre-wrap; }
+  .cardnews .cn-foot{
+    padding: 14px 20px; border-top:1px dashed var(--pink-line);
+    display:flex; justify-content:space-between; font-size:11px; color: var(--text-muted);
+  }
+
+  .recipient-summary{
+    font-size:12.5px; color: var(--text-muted); margin-top:14px; text-align:center; line-height:1.6;
+  }
+  .recipient-summary b{ color: var(--indigo-deep); }
+
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform: translateX(-50%) translateY(20px);
+    background: var(--indigo-deep); color:#fff; padding:12px 20px; border-radius: 999px;
+    font-size:13px; font-weight:600; box-shadow: var(--shadow);
+    opacity:0; pointer-events:none; transition: all .25s ease; z-index:50;
+  }
+  .toast.show{ opacity:1; transform: translateX(-50%) translateY(0); }
+
+  .final-check{ text-align:center; padding: 30px 10px 10px; }
+  .final-check .icon{
+    width:64px; height:64px; border-radius:50%;
+    background: var(--indigo-soft); color: var(--indigo);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 16px;
+    font-size:28px;
+  }
+
+  /* ===== Tablet: 2-column split ===== */
+  @media (min-width: 768px){
+    #app{
+      max-width: 920px;
+      display:grid;
+      grid-template-columns: 300px 1fr;
+      grid-template-rows: auto 1fr;
+      column-gap: 0;
+    }
+    header.topbar{ grid-column: 1 / -1; padding: 28px 32px 6px; }
+    .ribbon-track{ display:none; }
+
+    .side-panel{
+      grid-row: 2;
+      padding: 20px 24px 24px;
+      display:flex; flex-direction:column;
+    }
+    .side-steps{
+      background:#fff; border-radius: var(--radius-lg); box-shadow: var(--shadow);
+      padding: 22px 18px; flex:1;
+    }
+    .side-step{
+      display:flex; align-items:center; gap:10px;
+      padding: 12px 10px; border-radius: 12px; font-size:13px; font-weight:600;
+      color: var(--text-muted); position:relative;
+    }
+    .side-step .num{
+      width:24px; height:24px; border-radius:50%; background: var(--pink-bg-deep);
+      display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800;
+      color: var(--text-muted); flex-shrink:0;
+    }
+    .side-step.done .num{ background: var(--indigo); color:#fff; }
+    .side-step.active{ color: var(--indigo-deep); background: var(--indigo-soft); }
+    .side-step.active .num{ background: var(--indigo); color:#fff; }
+    .side-step.done{ color: var(--indigo-deep); }
+    .ribbon-tab{
+      position:absolute; right:-1px; top:50%; transform: translateY(-50%);
+      width:5px; height:60%; background: linear-gradient(180deg, var(--indigo), #6D5EF0);
+      border-radius: 4px 0 0 4px; opacity:0;
+    }
+    .side-step.active .ribbon-tab{ opacity:1; }
+
+    main{ grid-column: 2; grid-row: 2; padding: 20px 40px 60px; max-width:560px; }
+    .bottom-bar{ max-width:560px; margin: 0; margin-left:0; position:sticky; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="logo">독서<span>생각</span></div>
+    <div class="step-label" id="stepLabel">1 / 6</div>
+  </header>
+
+  <div class="ribbon-track" id="ribbonTrack"></div>
+
+  <!-- Tablet side nav -->
+  <div class="side-panel">
+    <div class="side-steps" id="sideSteps"></div>
+  </div>
+
+  <main>
+
+    <!-- STEP 0: 프로필 -->
+    <section class="view" data-view="0">
+      <h1 class="step-title">먼저, 너를 알려줘</h1>
+      <p class="step-sub">한 번만 입력하면 다음부터는 자동으로 기억할게요.</p>
+      <div class="card">
+        <label class="field-label">연령대<span class="req">*</span></label>
+        <div class="pill-group" id="ageGroup">
+          <div class="pill" data-value="초등고학년">초등 고학년</div>
+          <div class="pill" data-value="중학생">중학생</div>
+          <div class="pill" data-value="고등학생">고등학생</div>
+        </div>
+
+        <label class="field-label">부모님 이메일<span class="req">*</span></label>
+        <input type="email" id="parentEmail" placeholder="parent@example.com">
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="selfEmailToggle">
+          <label for="selfEmailToggle">나도 함께 메일 받기</label>
+        </div>
+        <div id="selfEmailWrap" style="display:none;">
+          <label class="field-label">내 이메일<span class="opt">선택</span></label>
+          <input type="email" id="selfEmail" placeholder="me@example.com">
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 1: 도서 검색 -->
+    <section class="view" data-view="1">
+      <h1 class="step-title">어떤 책을 읽었나요?</h1>
+      <p class="step-sub">제목이나 저자를 검색해서 골라주세요.</p>
+      <div class="card">
+        <div class="search-row">
+          <input type="text" id="bookSearchInput" placeholder="예: 아몬드, 우주 쓰레기">
+          <button id="bookSearchBtn">검색</button>
+        </div>
+        <div id="bookResults"></div>
+      </div>
+    </section>
+
+    <!-- STEP 2: 장르 선택 -->
+    <section class="view" data-view="2">
+      <h1 class="step-title">어떤 분야의 책인가요?</h1>
+      <p class="step-sub">자동으로 골라봤어요. 다르다고 생각하면 직접 바꿔도 좋아요.</p>
+      <div class="card">
+        <div class="pill-group" id="genreGroup" style="flex-wrap:wrap;">
+          <div class="pill" data-value="문학/예술" style="flex-basis:47%;">문학/예술</div>
+          <div class="pill" data-value="인문/사회" style="flex-basis:47%;">인문/사회</div>
+          <div class="pill" data-value="자연과학/공학" style="flex-basis:47%;">자연과학/공학</div>
+          <div class="pill" data-value="역사/인물" style="flex-basis:47%;">역사/인물</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 3: 심화 질문 -->
+    <section class="view" data-view="3">
+      <h1 class="step-title">한 문장씩, 천천히</h1>
+      <p class="step-sub">정답은 없어요. 떠오르는 대로 편하게 적어보세요.</p>
+      <div class="card" id="srToggleWrap" style="display:none;">
+        <div class="sr-toggle">
+          <div>
+            <div class="label">생기부 모드</div>
+            <div class="desc">동기 → 탐구 → 진로 → 성찰 프레임 적용</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="srMode">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="card" id="questionsWrap"></div>
+    </section>
+
+    <!-- STEP 4: AI 다듬기 -->
+    <section class="view" data-view="4">
+      <h1 class="step-title">문장을 가지런히</h1>
+      <p class="step-sub">원래 말투는 그대로, 맞춤법과 흐름만 다듬어요.</p>
+      <div class="card">
+        <div class="ai-status" id="aiStatus">
+          <div class="dot-spin"></div>
+          다듬는 중이에요...
+        </div>
+        <div id="aiResultWrap" style="display:none;">
+          <label class="field-label">완성된 글 — 직접 고쳐도 좋아요</label>
+          <textarea id="draftEditor" style="min-height:220px;"></textarea>
+          <p class="note-inline">✎ AI는 맞춤법과 문장 연결만 다듬었어요. 표현과 생각은 전부 너의 것이에요.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STEP 5: 완료/발송 미리보기 -->
+    <section class="view" data-view="5">
+      <h1 class="step-title">이렇게 보낼게요</h1>
+      <p class="step-sub">부모님 메일함에 카드뉴스 형태로 도착해요.</p>
+      <div class="cardnews" id="cardNews"></div>
+      <p class="recipient-summary" id="recipientSummary"></p>
+    </section>
+
+    <!-- STEP 6: 완료 -->
+    <section class="view" data-view="6">
+      <div class="final-check">
+        <div class="icon">✓</div>
+        <h1 class="step-title" style="text-align:center;">보냈어요!</h1>
+        <p class="step-sub" style="text-align:center;">잘 읽었어요. 다음 책도 기다릴게요 📚</p>
+        <button class="btn-ghost" id="restartBtn">새 독서생각 시작하기</button>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="bottom-bar" id="bottomBar">
+    <button class="btn-primary" id="nextBtn">다음</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+/* ============ Config ============ */
+// 배포된 GAS 웹앱 URL로 교체하세요 (배포 > 웹 앱으로 배포 > 액세스 권한: 모든 사용자)
+const CONFIG = {
+  GAS_URL: "https://script.google.com/macros/s/AKfycbwmKdl1jCCamWSgtXcBKFZu0dC7_zTkSMGDq9TBtQBWaqXmSLTxWEtU7jb5feyHgKi7/exec"
+};
+
+/* ============ Data ============ */
+const STEP_TITLES = ["프로필","도서 검색","분야 선택","심화 질문","AI 다듬기","발송 미리보기","완료"];
+const TOTAL_STEPS = 7; // 0..6
+
+const MOCK_BOOKS = [
+  { title: "아몬드", author: "손원평", cat: "문학/예술", emoji:"📕" },
+  { title: "우주 쓰레기 시대", author: "김승모", cat: "자연과학/공학", emoji:"🛰️" },
+  { title: "정의란 무엇인가", author: "마이클 샌델", cat: "인문/사회", emoji:"📘" },
+  { title: "세종, 조선의 표준을 세우다", author: "이한", cat: "역사/인물", emoji:"👑" },
+  { title: "완득이", author: "김려령", cat: "문학/예술", emoji:"📗" },
+];
+
+const QUESTIONS = {
+  "문학/예술": {
+    default: [
+      "이 책에서 가장 마음에 남은 장면은 무엇이고, 왜 그랬나요?",
+      "주인공이 그런 선택을 했을 때, 나라면 어떻게 했을까요?",
+      "이 책을 다 읽고 난 지금, 어떤 기분이 드나요?"
+    ],
+    sr: [
+      "이 책을 선택하게 된 개인적인 동기는 무엇이었나요?",
+      "책 속 인물이나 사건을 더 깊이 탐구해보고 싶은 부분이 있다면?",
+      "이 책의 주제가 내가 관심 있는 분야나 진로와 어떻게 연결될까요?",
+      "책을 읽기 전과 후, 나 자신에게 생긴 변화는 무엇인가요?"
+    ]
+  },
+  "인문/사회": {
+    default: [
+      "이 책이 다루는 문제는 우리 주변 어디에서 볼 수 있나요?",
+      "저자의 생각에 동의하는 부분과 그렇지 않은 부분은 무엇인가요?",
+      "이 책을 읽고 새롭게 든 궁금증이 있다면?"
+    ],
+    sr: [
+      "이 주제에 관심을 갖게 된 계기는 무엇이었나요?",
+      "책에서 제시한 문제를 더 파고들고 싶은 방향이 있다면?",
+      "이 문제의식이 내 진로 탐색에 어떤 의미를 주나요?",
+      "책을 읽으며 달라진 나의 관점은 무엇인가요?"
+    ]
+  },
+  "자연과학/공학": {
+    default: [
+      "이 책에서 알게 된 가장 신기한 사실은 무엇인가요?",
+      "이 원리나 기술이 실제로 어디에 쓰이고 있을까요?",
+      "더 알아보고 싶어진 궁금증이 생겼나요?"
+    ],
+    sr: [
+      "이 분야에 흥미를 느끼게 된 계기는 무엇인가요?",
+      "책의 내용을 바탕으로 더 탐구해보고 싶은 실험이나 질문이 있다면?",
+      "이 지식이 내가 꿈꾸는 진로와 어떻게 맞닿아 있나요?",
+      "책을 읽고 문제를 바라보는 방식이 어떻게 달라졌나요?"
+    ]
+  },
+  "역사/인물": {
+    default: [
+      "이 인물(사건)에서 가장 인상 깊었던 순간은 언제인가요?",
+      "그 시대에 내가 있었다면 어떤 선택을 했을까요?",
+      "오늘날 우리에게 이 이야기가 주는 의미는 무엇일까요?"
+    ],
+    sr: [
+      "이 인물(시대)에 관심을 갖게 된 계기는 무엇인가요?",
+      "더 깊이 탐구해보고 싶은 역사적 맥락이 있다면?",
+      "이 이야기가 내 진로나 가치관에 준 영향은 무엇인가요?",
+      "책을 읽은 후 역사를 보는 나의 시선은 어떻게 바뀌었나요?"
+    ]
+  }
+};
+
+/* ============ State ============ */
+let state = {
+  step: 0,
+  age: null,
+  parentEmail: "",
+  selfEmailOn: false,
+  selfEmail: "",
+  selectedBook: null,
+  genre: null,
+  srMode: false,
+  answers: [],
+  draft: ""
+};
+
+/* ============ Init: load profile from localStorage ============ */
+(function loadProfile(){
+  try{
+    const saved = JSON.parse(localStorage.getItem('readthink_profile') || 'null');
+    if(saved){
+      state.age = saved.age;
+      state.parentEmail = saved.parentEmail;
+      state.selfEmailOn = saved.selfEmailOn;
+      state.selfEmail = saved.selfEmail;
+    }
+  }catch(e){}
+})();
+
+function saveProfile(){
+  localStorage.setItem('readthink_profile', JSON.stringify({
+    age: state.age, parentEmail: state.parentEmail,
+    selfEmailOn: state.selfEmailOn, selfEmail: state.selfEmail
+  }));
+}
+
+/* ============ Ribbon / side nav render ============ */
+function renderRibbon(){
+  const track = document.getElementById('ribbonTrack');
+  track.innerHTML = '';
+  for(let i=0;i<TOTAL_STEPS;i++){
+    const n = document.createElement('div');
+    n.className = 'ribbon-notch';
+    if(i < state.step) n.classList.add('done');
+    else if(i === state.step) n.classList.add('active');
+    n.innerHTML = '<div class="fill"></div>';
+    track.appendChild(n);
+  }
+  document.getElementById('stepLabel').textContent = (state.step+1)+' / '+TOTAL_STEPS;
+
+  const side = document.getElementById('sideSteps');
+  side.innerHTML = '';
+  STEP_TITLES.forEach((t,i)=>{
+    const row = document.createElement('div');
+    row.className = 'side-step' + (i===state.step ? ' active' : (i<state.step ? ' done':''));
+    row.innerHTML = `<div class="num">${i<state.step?'✓':(i+1)}</div><div>${t}</div><div class="ribbon-tab"></div>`;
+    side.appendChild(row);
+  });
+}
+
+/* ============ View switching ============ */
+function showView(i){
+  document.querySelectorAll('.view').forEach(v=>{
+    v.classList.toggle('active', +v.dataset.view === i);
+  });
+  renderRibbon();
+  document.getElementById('bottomBar').style.display = (i===6) ? 'none' : 'block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ============ STEP 0: profile ============ */
+document.querySelectorAll('#ageGroup .pill').forEach(p=>{
+  p.addEventListener('click', ()=>{
+    document.querySelectorAll('#ageGroup .pill').forEach(x=>x.classList.remove('selected'));
+    p.classList.add('selected');
+    state.age = p.dataset.value;
+  });
+});
+document.getElementById('selfEmailToggle').addEventListener('change', (e)=>{
+  state.selfEmailOn = e.target.checked;
+  document.getElementById('selfEmailWrap').style.display = e.target.checked ? 'block':'none';
+});
+
+function hydrateProfileForm(){
+  if(state.age){
+    document.querySelectorAll('#ageGroup .pill').forEach(x=>{
+      x.classList.toggle('selected', x.dataset.value === state.age);
+    });
+  }
+  if(state.parentEmail) document.getElementById('parentEmail').value = state.parentEmail;
+  if(state.selfEmailOn){
+    document.getElementById('selfEmailToggle').checked = true;
+    document.getElementById('selfEmailWrap').style.display = 'block';
+  }
+  if(state.selfEmail) document.getElementById('selfEmail').value = state.selfEmail;
+}
+hydrateProfileForm();
+
+/* ============ STEP 1: book search ============ */
+function renderBookResults(list){
+  const wrap = document.getElementById('bookResults');
+  wrap.innerHTML = '';
+  if(list.length===0){
+    wrap.innerHTML = '<p class="step-sub" style="margin-top:14px;">검색 결과가 없어요. 다른 검색어로 시도해보세요.</p>';
+    return;
+  }
+  list.forEach(b=>{
+    const el = document.createElement('div');
+    el.className = 'book-result' + (state.selectedBook && state.selectedBook.title===b.title ? ' selected':'');
+    el.innerHTML = `
+      <div class="book-cover">${b.emoji}</div>
+      <div class="book-info">
+        <div class="title">${b.title}</div>
+        <div class="author">${b.author}</div>
+        <div class="cat">${b.cat}</div>
+      </div>`;
+    el.addEventListener('click', ()=>{
+      state.selectedBook = b;
+      state.genre = b.cat;
+      renderBookResults(list);
+    });
+    wrap.appendChild(el);
+  });
+}
+document.getElementById('bookSearchBtn').addEventListener('click', doSearch);
+document.getElementById('bookSearchInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+function doSearch(){
+  const q = document.getElementById('bookSearchInput').value.trim();
+  const filtered = q ? MOCK_BOOKS.filter(b=> b.title.includes(q) || b.author.includes(q)) : MOCK_BOOKS;
+  renderBookResults(filtered);
+}
+renderBookResults(MOCK_BOOKS);
+
+/* ============ STEP 2: genre ============ */
+function hydrateGenre(){
+  document.querySelectorAll('#genreGroup .pill').forEach(p=>{
+    p.classList.toggle('selected', p.dataset.value === state.genre);
+    p.onclick = ()=>{
+      document.querySelectorAll('#genreGroup .pill').forEach(x=>x.classList.remove('selected'));
+      p.classList.add('selected');
+      state.genre = p.dataset.value;
+    };
+  });
+}
+
+/* ============ STEP 3: questions ============ */
+function renderQuestions(){
+  document.getElementById('srToggleWrap').style.display = (state.age==='고등학생') ? 'block' : 'none';
+  document.getElementById('srMode').checked = state.srMode;
+  const set = QUESTIONS[state.genre] || QUESTIONS["문학/예술"];
+  const qs = (state.age==='고등학생' && state.srMode) ? set.sr : set.default;
+  state.answers = new Array(qs.length).fill('');
+  const wrap = document.getElementById('questionsWrap');
+  wrap.innerHTML = '';
+  qs.forEach((q,i)=>{
+    const block = document.createElement('div');
+    block.className = 'q-block';
+    block.innerHTML = `
+      <span class="q-num">Q${i+1}</span>
+      <div class="q-text">${q}</div>
+      <textarea data-idx="${i}" placeholder="한 문장이면 충분해요"></textarea>`;
+    wrap.appendChild(block);
+  });
+  wrap.querySelectorAll('textarea').forEach(t=>{
+    t.addEventListener('input', (e)=>{ state.answers[+e.target.dataset.idx] = e.target.value; });
+  });
+}
+document.getElementById('srMode').addEventListener('change', (e)=>{
+  state.srMode = e.target.checked;
+  renderQuestions();
+});
+
+/* ============ STEP 4: AI draft (mock) ============ */
+function runAIDraft(){
+  document.getElementById('aiStatus').style.display = 'flex';
+  document.getElementById('aiResultWrap').style.display = 'none';
+  // NOTE: 프로토타입이라 실제 Gemini API 대신 간단한 목업 처리를 합니다.
+  // 실제 구현에서는 GAS 백엔드를 통해 Gemini API를 호출하고,
+  // "원문 어휘 100% 보존 + 맞춤법/연결만 수정" 프롬프트를 적용합니다.
+  setTimeout(()=>{
+    const bookTitle = state.selectedBook ? state.selectedBook.title : "이 책";
+    const filled = state.answers.filter(a=>a.trim().length>0);
+    const body = filled.length
+      ? filled.map(a=>a.trim().replace(/([^.!?])$/,'$1.')).join(' ')
+      : `${bookTitle}을(를) 읽으며 많은 생각을 했다.`;
+    state.draft = `${bookTitle}을(를) 읽고 나서, ${body}`;
+    document.getElementById('draftEditor').value = state.draft;
+    document.getElementById('aiStatus').style.display = 'none';
+    document.getElementById('aiResultWrap').style.display = 'block';
+  }, 1200);
+}
+document.getElementById('draftEditor').addEventListener('input', (e)=>{ state.draft = e.target.value; });
+
+/* ============ STEP 5: card news preview ============ */
+function renderCardNews(){
+  const b = state.selectedBook || { title:"제목 없음", author:"", emoji:"📖" };
+  const dateStr = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('cardNews').innerHTML = `
+    <div class="cn-top">
+      <div class="cn-cover">${b.emoji||'📖'}</div>
+      <div>
+        <div class="cn-title">${b.title}</div>
+        <div class="cn-author">${b.author}</div>
+        <div class="cn-badge">${state.age||''}${state.srMode && state.age==='고등학생' ? ' · 생기부 모드':''}</div>
+      </div>
+    </div>
+    <div class="cn-body"><p>${(state.draft||'').replace(/</g,'&lt;')}</p></div>
+    <div class="cn-foot"><span>${dateStr} 작성</span><span>독서생각 · ReadThink</span></div>
+  `;
+  const recipients = [state.parentEmail].concat(state.selfEmailOn && state.selfEmail ? [state.selfEmail] : []);
+  document.getElementById('recipientSummary').innerHTML =
+    `<b>${recipients.filter(Boolean).join(', ') || '수신자 없음'}</b> 로 발송돼요`;
+}
+
+/* ============ Email send (GAS 연동) ============ */
+async function sendReportEmail(){
+  if(!CONFIG.GAS_URL || CONFIG.GAS_URL.includes('여기에')){
+    toast('CONFIG.GAS_URL을 먼저 설정해주세요');
+    return false;
+  }
+  const btn = document.getElementById('nextBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '보내는 중...';
+
+  const payload = {
+    parentEmail: state.parentEmail,
+    studentEmail: state.selfEmailOn ? state.selfEmail : "",
+    studentLevel: state.age || "청소년",
+    bookTitle: state.selectedBook ? state.selectedBook.title : "제목 없음",
+    bookAuthor: state.selectedBook ? state.selectedBook.author : "저자 미상",
+    reportContent: state.draft || ""
+  };
+
+  try{
+    // GAS 웹앱은 JSON Content-Type에 대해 CORS preflight(OPTIONS)를 지원하지 않으므로
+    // text/plain으로 보내되, GAS 쪽에서는 그대로 JSON.parse(e.postData.contents)로 파싱됩니다.
+    const res = await fetch(CONFIG.GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if(json.result === 'success'){
+      return true;
+    }else{
+      toast('발송 실패: ' + (json.message || '알 수 없는 오류'));
+      return false;
+    }
+  }catch(err){
+    toast('발송 중 오류가 발생했어요. GAS URL과 배포 설정을 확인해주세요.');
+    return false;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+/* ============ Navigation ============ */
+document.getElementById('nextBtn').addEventListener('click', async ()=>{
+  if(!validateStep(state.step)) return;
+
+  if(state.step === 0){ saveProfile(); }
+
+  // 발송 미리보기 화면(5)에서 "메일 발송하기"를 누르면 실제 전송 후에만 다음 단계로 이동
+  if(state.step === 5){
+    const ok = await sendReportEmail();
+    if(!ok) return;
+  }
+
+  state.step++;
+
+  if(state.step === 2){ hydrateGenre(); }
+  if(state.step === 3){ renderQuestions(); }
+  if(state.step === 4){ runAIDraft(); }
+  if(state.step === 5){ renderCardNews(); }
+
+  document.getElementById('nextBtn').textContent = state.step===5 ? '메일 발송하기' : '다음';
+  showView(state.step);
+});
+
+function validateStep(i){
+  if(i===0){
+    if(!state.age){ toast('연령대를 선택해주세요'); return false; }
+    const pe = document.getElementById('parentEmail').value.trim();
+    if(!pe || !pe.includes('@')){ toast('부모님 이메일을 입력해주세요'); return false; }
+    state.parentEmail = pe;
+    state.selfEmail = document.getElementById('selfEmail').value.trim();
+    return true;
+  }
+  if(i===1){
+    if(!state.selectedBook){ toast('책을 선택해주세요'); return false; }
+    return true;
+  }
+  if(i===2){
+    if(!state.genre){ toast('분야를 선택해주세요'); return false; }
+    return true;
+  }
+  if(i===3){
+    if(state.answers.every(a=>!a || !a.trim())){ toast('한 문장이라도 적어주세요'); return false; }
+    return true;
+  }
+  return true;
+}
+
+document.getElementById('restartBtn').addEventListener('click', ()=>{
+  state.selectedBook = null; state.genre = null; state.answers = []; state.draft = ''; state.srMode = false;
+  state.step = 1; // profile already saved, skip back to book search
+  document.getElementById('nextBtn').textContent = '다음';
+  renderBookResults(MOCK_BOOKS);
+  showView(state.step);
+});
+
+/* ============ boot ============ */
+showView(0);
+</script>
+</body>
+</html>
