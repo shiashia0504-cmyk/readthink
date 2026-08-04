@@ -517,7 +517,10 @@
           다듬는 중이에요...
         </div>
         <div id="aiResultWrap" style="display:none;">
-          <label class="field-label">완성된 글 — 직접 고쳐도 좋아요</label>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label class="field-label" style="margin:0;">완성된 글 — 직접 고쳐도 좋아요</label>
+            <button id="retryAIBtn" type="button" style="border:none; background:none; color:var(--indigo); font-weight:700; font-size:12.5px; cursor:pointer; padding:4px 8px;">↻ 다시 다듬기</button>
+          </div>
           <textarea id="draftEditor" style="min-height:220px;"></textarea>
           <p class="note-inline">✎ AI는 맞춤법과 문장 연결만 다듬었어요. 표현과 생각은 전부 너의 것이에요.</p>
         </div>
@@ -883,6 +886,7 @@ async function runAIDraft(){
   document.getElementById('aiResultWrap').style.display = 'block';
 }
 document.getElementById('draftEditor').addEventListener('input', (e)=>{ state.draft = e.target.value; });
+document.getElementById('retryAIBtn').addEventListener('click', ()=>{ runAIDraft(); });
 
 /* ============ STEP 5: card news preview ============ */
 function renderCardNews(){
