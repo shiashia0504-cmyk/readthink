@@ -272,6 +272,31 @@
     font-weight:700; margin-bottom:6px; display:block;
   }
   .q-text{ font-size:15px; font-weight:600; line-height:1.5; margin-bottom:10px; }
+
+  /* ===== 도서 개요 뷰어 ===== */
+  .synopsis-card{ padding:0; overflow:hidden; }
+  .synopsis-toggle{
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border:none; background:none; cursor:pointer;
+    font-family:inherit; font-size:14px; font-weight:700; color:var(--indigo-deep);
+  }
+  .synopsis-toggle .chev{ transition: transform .2s ease; color:var(--indigo); }
+  .synopsis-card.open .synopsis-toggle .chev{ transform: rotate(180deg); }
+  .synopsis-body{
+    max-height:0; overflow:hidden; transition: max-height .25s ease;
+    padding: 0 20px;
+  }
+  .synopsis-card.open .synopsis-body{ max-height:260px; padding: 0 20px 18px; overflow-y:auto; }
+  .synopsis-body p{ margin:0; font-size:13px; line-height:1.7; color: var(--text-muted); }
+
+  /* ===== 생각 키워드 칩 ===== */
+  .chip-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .chip{
+    font-size:11.5px; font-weight:600; color: var(--indigo);
+    background: var(--indigo-soft); border:none; border-radius:999px;
+    padding:5px 11px; cursor:pointer; transition: all .15s ease;
+  }
+  .chip:hover{ background: var(--indigo); color:#fff; }
   textarea{
     width:100%; min-height: 78px;
     padding: 12px 14px;
@@ -492,11 +517,20 @@
     <section class="view" data-view="3">
       <h1 class="step-title">한 문장씩, 천천히</h1>
       <p class="step-sub">정답은 없어요. 떠오르는 대로 편하게 적어보세요.</p>
+
+      <div class="card synopsis-card" id="synopsisCard" style="display:none;">
+        <button type="button" class="synopsis-toggle" id="synopsisToggle">
+          <span>📖 책 개요 보기</span>
+          <span class="chev" id="synopsisChev">▾</span>
+        </button>
+        <div class="synopsis-body" id="synopsisBody"></div>
+      </div>
+
       <div class="card" id="srToggleWrap" style="display:none;">
         <div class="sr-toggle">
           <div>
-            <div class="label">생기부 모드</div>
-            <div class="desc">동기 → 탐구 → 진로 → 성찰 프레임 적용</div>
+            <div class="label" id="hsModeLabel">자유 에세이 모드</div>
+            <div class="desc" id="hsModeDesc">첫인상 → 인상 깊은 장면 → 나의 시각 → 삶의 변화</div>
           </div>
           <label class="switch">
             <input type="checkbox" id="srMode">
@@ -566,66 +600,83 @@ const STEP_TITLES = ["프로필","도서 검색","분야 선택","심화 질문"
 const TOTAL_STEPS = 7; // 0..6
 
 const MOCK_BOOKS = [
-  { title: "아몬드", author: "손원평", cat: "문학/예술", emoji:"📕" },
-  { title: "우주 쓰레기 시대", author: "김승모", cat: "자연과학/공학", emoji:"🛰️" },
-  { title: "정의란 무엇인가", author: "마이클 샌델", cat: "인문/사회", emoji:"📘" },
-  { title: "세종, 조선의 표준을 세우다", author: "이한", cat: "역사/인물", emoji:"👑" },
-  { title: "완득이", author: "김려령", cat: "문학/예술", emoji:"📗" },
+  { title: "아몬드", author: "손원평", cat: "문학/예술", emoji:"📕", description:"감정을 느끼지 못하는 소년 윤재가 폭력적인 사건을 겪은 뒤, 친구 곤이를 만나며 진짜 마음을 배워가는 이야기." },
+  { title: "우주 쓰레기 시대", author: "김승모", cat: "자연과학/공학", emoji:"🛰️", description:"지구 궤도를 떠도는 우주 쓰레기 문제의 원인과 심각성, 그리고 이를 해결하기 위한 기술과 국제 협력을 다룬 과학 교양서." },
+  { title: "정의란 무엇인가", author: "마이클 샌델", cat: "인문/사회", emoji:"📘", description:"공리주의, 자유지상주의 등 다양한 정의론을 실제 사례로 짚어보며 '옳은 일이란 무엇인가'를 질문하는 철학 교양서." },
+  { title: "세종, 조선의 표준을 세우다", author: "이한", cat: "역사/인물", emoji:"👑", description:"훈민정음 창제부터 과학기술 진흥까지, 세종대왕이 조선의 여러 표준을 세워나간 과정을 다룬 역사서." },
+  { title: "완득이", author: "김려령", cat: "문학/예술", emoji:"📗", description:"가난하고 어눌한 소년 완득이가 괴짜 담임선생님과 부딪히며 성장해가는 유쾌하고 뭉클한 청소년 소설." },
 ];
 
-const QUESTIONS = {
-  "문학/예술": {
-    default: [
-      "이 책에서 가장 마음에 남은 장면은 무엇이고, 왜 그랬나요?",
-      "주인공이 그런 선택을 했을 때, 나라면 어떻게 했을까요?",
-      "이 책을 다 읽고 난 지금, 어떤 기분이 드나요?"
+/* 질문 세트: 초등고학년/중학생 — 연령 × 장르 × 4단계(서론-본론1-본론2-결론) */
+const QUESTIONS_BY_AGE = {
+  "초등고학년": {
+    "문학/예술": [
+      { label:"서론", text:"책을 읽기 전 표지나 줄거리를 보며 떠올린 생각이나 이 책을 선택한 이유는 무엇인가요?", chips:["#표지가 궁금해서","#친구 추천","#제목이 끌려서"] },
+      { label:"본론 1", text:"이야기에서 가장 가슴 졸이거나 오랫동안 기억에 남는 사건(장면)은 무엇이었나요?", chips:["#반전 장면","#눈물 났던 장면","#통쾌했던 장면"] },
+      { label:"본론 2", text:"주인공이 힘든 일을 겪었을 때, 왜 그런 선택을 했을지 주인공의 마음을 떠올려 보세요.", chips:["#용기있는 선택","#어쩔 수 없는 선택","#내가 주인공이었다면"] },
+      { label:"결론", text:"이 책을 다 읽은 후 내 마음이나 일상에서 조금이라도 달라진 생각이나 다짐은 무엇인가요?", chips:["#작은 다짐","#친구를 대하는 태도","#딱히 달라진 건 없지만"] }
     ],
-    sr: [
-      "이 책을 선택하게 된 개인적인 동기는 무엇이었나요?",
-      "책 속 인물이나 사건을 더 깊이 탐구해보고 싶은 부분이 있다면?",
-      "이 책의 주제가 내가 관심 있는 분야나 진로와 어떻게 연결될까요?",
-      "책을 읽기 전과 후, 나 자신에게 생긴 변화는 무엇인가요?"
+    "인문/사회": [
+      { label:"서론", text:"이 책에서 다루는 주제(마음, 친구, 규칙, 사회)에 대해 평소 어떤 생각을 갖고 있었나요?", chips:["#평소 궁금했던 것","#잘 몰랐던 것","#당연하다고 생각했던 것"] },
+      { label:"본론 1", text:"책 속 이야기 중 \"정말 그렇구나!\" 하고 깊이 공감했던 장면이나 이야기는 무엇인가요?", chips:["#공감됐던 장면","#내 이야기 같았던 부분","#새롭게 알게 된 사실"] },
+      { label:"본론 2", text:"만약 내가 책 속 상황에 있었다면, 또는 더 좋은 세상이 되려면 어떻게 해야 할까요?", chips:["#내가 할 수 있는 일","#친구들과 함께","#어른들이 바뀌어야"] },
+      { label:"결론", text:"이 책을 한 단어나 한 문장으로 표현해 보고, 친구에게 추천해 주고 싶은 이유는 무엇인가요?", chips:["#친구에게 강추","#다시 읽고 싶은 책","#생각할 거리가 많은 책"] }
+    ],
+    "자연과학/공학": [
+      { label:"서론", text:"이 과학/기술 책을 읽게 된 이유나 평소 갖고 있던 궁금증은 무엇이었나요?", chips:["#평소 궁금했던 것","#숙제 때문에","#표지가 신기해서"] },
+      { label:"본론 1", text:"이 책을 통해 처음 알게 된 가장 신기하거나 놀라운 과학적 사실은 무엇인가요?", chips:["#처음 알게 된 사실","#믿기지 않았던 사실","#설명하고 싶은 원리"] },
+      { label:"본론 2", text:"이 과학 원리나 기술이 우리 일상생활에서 어떻게 활용되고 있나요?", chips:["#우리 집에서도","#학교에서 본 적","#뉴스에서 본 적"] },
+      { label:"결론", text:"이 책을 읽고 나서 더 알아보고 싶거나 새롭게 궁금해진 질문 한 가지는 무엇인가요?", chips:["#더 알아보고 싶은 것","#다음엔 이 책","#선생님께 물어보고 싶은 것"] }
+    ],
+    "역사/인물": [
+      { label:"서론", text:"이 인물(또는 역사적 사건)에 대해 평소 알고 있던 내용이나 궁금했던 점은 무엇이었나요?", chips:["#이름만 알았던","#전혀 몰랐던 이야기","#교과서에서 봤던"] },
+      { label:"본론 1", text:"인물의 삶이나 역사적 사건 중 가장 대단하거나 결정적이었던 순간은 언제였나요?", chips:["#가장 대단했던 순간","#놀라웠던 결정","#위기의 순간"] },
+      { label:"본론 2", text:"인물이 마주한 어려움과 그걸 극복한 행동을 보며 어떤 느낌이나 생각이 들었나요?", chips:["#존경스러웠던 점","#나라면 못했을 것","#포기하지 않는 마음"] },
+      { label:"결론", text:"이 인물/역사에게 배우고 싶은 점 한 가지와, 지금 나에게 주는 교훈은 무엇인가요?", chips:["#배우고 싶은 점","#나에게 주는 교훈","#앞으로 실천할 것"] }
     ]
   },
-  "인문/사회": {
-    default: [
-      "이 책이 다루는 문제는 우리 주변 어디에서 볼 수 있나요?",
-      "저자의 생각에 동의하는 부분과 그렇지 않은 부분은 무엇인가요?",
-      "이 책을 읽고 새롭게 든 궁금증이 있다면?"
+  "중학생": {
+    "문학/예술": [
+      { label:"서론", text:"이 작품의 제목과 도서 개요를 통해 어떤 주제의식을 다룰 것이라고 예상했나요?", chips:["#제목에서 예상한 것","#표지·개요로 짐작한 것","#예상과 달랐던 점"] },
+      { label:"본론 1", text:"작품 속에서 인물 간 갈등이 가장 고조되었던 장면과 그 원인은 무엇이었나요?", chips:["#갈등의 원인","#가장 긴장됐던 장면","#오해에서 비롯된 갈등"] },
+      { label:"본론 2", text:"등장인물의 결정적인 선택에 대해 동의하나요? 나라면 어떻게 행동했을까요?", chips:["#동의하는 선택","#아쉬운 선택","#내가 주인공이었다면"] },
+      { label:"결론", text:"작품이 전달하려는 메시지와, 이 책이 나의 시각이나 가치관에 준 영향은 무엇인가요?", chips:["#작품이 던지는 메시지","#달라진 내 생각","#여전히 남는 질문"] }
     ],
-    sr: [
-      "이 주제에 관심을 갖게 된 계기는 무엇이었나요?",
-      "책에서 제시한 문제를 더 파고들고 싶은 방향이 있다면?",
-      "이 문제의식이 내 진로 탐색에 어떤 의미를 주나요?",
-      "책을 읽으며 달라진 나의 관점은 무엇인가요?"
-    ]
-  },
-  "자연과학/공학": {
-    default: [
-      "이 책에서 알게 된 가장 신기한 사실은 무엇인가요?",
-      "이 원리나 기술이 실제로 어디에 쓰이고 있을까요?",
-      "더 알아보고 싶어진 궁금증이 생겼나요?"
+    "인문/사회": [
+      { label:"서론", text:"저자가 이 책에서 해결하거나 파헤치고자 한 우리 사회의 핵심 문제는 무엇인가요?", chips:["#핵심 문제","#저자가 주목한 것","#내가 이해한 문제의식"] },
+      { label:"본론 1", text:"저자의 주장 중 가장 인상 깊었거나, 반대로 의문이 생겼던 부분은 어디인가요?", chips:["#가장 인상 깊은 주장","#의문이 든 부분","#동의하기 어려웠던 근거"] },
+      { label:"본론 2", text:"이 책의 내용과 연관된 최근의 사회 뉴스나 나의 실제 경험은 무엇이 있나요?", chips:["#관련 뉴스","#내 경험과 비슷했던 점","#주변에서 본 사례"] },
+      { label:"결론", text:"이 문제를 해결하기 위해 우리 사회나 나 자신이 실천할 수 있는 방향은 무엇일까요?", chips:["#내가 할 수 있는 실천","#사회가 바뀌어야 할 점","#작은 변화부터"] }
     ],
-    sr: [
-      "이 분야에 흥미를 느끼게 된 계기는 무엇인가요?",
-      "책의 내용을 바탕으로 더 탐구해보고 싶은 실험이나 질문이 있다면?",
-      "이 지식이 내가 꿈꾸는 진로와 어떻게 맞닿아 있나요?",
-      "책을 읽고 문제를 바라보는 방식이 어떻게 달라졌나요?"
-    ]
-  },
-  "역사/인물": {
-    default: [
-      "이 인물(사건)에서 가장 인상 깊었던 순간은 언제인가요?",
-      "그 시대에 내가 있었다면 어떤 선택을 했을까요?",
-      "오늘날 우리에게 이 이야기가 주는 의미는 무엇일까요?"
+    "자연과학/공학": [
+      { label:"서론", text:"책에서 다루는 과학적 원리/기술의 배경과 이 책을 탐구하게 된 계기는 무엇인가요?", chips:["#탐구하게 된 계기","#평소 관심 있던 분야","#수업과 연결된 궁금증"] },
+      { label:"본론 1", text:"이 책에서 제시하는 핵심 과학적 이론이나 기술의 작동 메커니즘은 무엇인가요?", chips:["#핵심 원리","#가장 놀라웠던 메커니즘","#이해가 잘 안 됐던 부분"] },
+      { label:"본론 2", text:"이 기술/이론이 가져올 유용성과 동시에 우리가 주의해야 할 부작용이나 윤리적 문제는?", chips:["#유용한 점","#주의해야 할 점","#윤리적으로 고민되는 부분"] },
+      { label:"결론", text:"본 독서를 바탕으로 앞으로 내가 더 탐구해 보고 싶은 확장 질문이나 세부 주제는?", chips:["#더 탐구하고 싶은 주제","#관련해서 찾아본 것","#다음 탐구 계획"] }
     ],
-    sr: [
-      "이 인물(시대)에 관심을 갖게 된 계기는 무엇인가요?",
-      "더 깊이 탐구해보고 싶은 역사적 맥락이 있다면?",
-      "이 이야기가 내 진로나 가치관에 준 영향은 무엇인가요?",
-      "책을 읽은 후 역사를 보는 나의 시선은 어떻게 바뀌었나요?"
+    "역사/인물": [
+      { label:"서론", text:"해당 역사적 사건/인물이 속한 시대적 배경과 탐구 목적은 무엇인가요?", chips:["#시대적 배경","#탐구하게 된 목적","#관심을 갖게 된 계기"] },
+      { label:"본론 1", text:"역사의 중요한 기로에서 인물이 보여준 결정적 선택과 그 결과는 무엇이었나요?", chips:["#결정적 선택","#그 선택의 결과","#가장 인상 깊은 순간"] },
+      { label:"본론 2", text:"그 시대의 상황과 오늘날 우리 사회의 모습을 비교했을 때 공통점이나 차이점은?", chips:["#오늘날과 비슷한 점","#달라진 점","#여전히 반복되는 문제"] },
+      { label:"결론", text:"역사가 나에게 주는 교훈과, 이 인물에게 배워 내 삶에 적용하고 싶은 점은?", chips:["#나에게 주는 교훈","#적용하고 싶은 점","#더 알아보고 싶은 역사"] }
     ]
   }
+};
+
+/* 고등학생 전용: 생기부 제출용(탐구록) / 자유 에세이 2모드 — 장르 무관 공통 4단계 */
+const HS_MODES = {
+  "탐구록": [
+    { label:"서론 · 지적 동기", text:"본 도서를 선정하게 된 지적 호기심이나 학술적 계기는 무엇인가요?", chips:["#지적 호기심","#수업과의 연결","#진로 탐색 과정에서"] },
+    { label:"본론 1 · 핵심 분석", text:"도서 속 핵심 이론, 주제 및 작가의 논거에 대한 다각적 분석은?", chips:["#핵심 이론 요약","#작가의 논거","#다른 관점에서 본 분석"] },
+    { label:"본론 2 · 학문/진로 연계", text:"본 도서의 내용이 자신의 희망 진로(전공)나 타 교과와 어떻게 연계되나요?", chips:["#희망 진로와의 연결","#타 교과와의 연계","#추가로 탐구하고 싶은 지점"] },
+    { label:"결론 · 지적 성찰", text:"본 독서를 통해 새롭게 알게 되었거나 확장된 지적 탐구 과제는 무엇인가요?", chips:["#새롭게 알게 된 것","#확장된 탐구 과제","#다음 탐구 계획"] }
+  ],
+  "자유에세이": [
+    { label:"서론 · 첫인상", text:"이 책을 처음 접했을 때의 기대를 담은 첫인상은 어떠했나요?", chips:["#표지·제목의 첫인상","#기대했던 내용","#예상과 달랐던 점"] },
+    { label:"본론 1 · 강렬한 구절/장면", text:"읽는 동안 가장 가슴을 울리거나 인상 깊었던 장면/구절은 무엇인가요?", chips:["#가장 인상 깊은 구절","#가슴에 남은 장면","#다시 곱씹게 되는 문장"] },
+    { label:"본론 2 · 나의 시각", text:"등장인물의 결정적 선택이나 작가의 주장에 대해 나는 어떻게 생각하나요?", chips:["#동의하는 부분","#동의하기 어려운 부분","#내가 그 상황이었다면"] },
+    { label:"결론 · 삶의 변화", text:"이 책을 읽고 난 후 내 일상이나 가치관에 생긴 작은 변화는 무엇인가요?", chips:["#작은 습관의 변화","#달라진 생각","#앞으로의 다짐"] }
+  ]
 };
 
 /* ============ State ============ */
@@ -809,11 +860,35 @@ function hydrateGenre(){
 
 /* ============ STEP 3: questions ============ */
 let currentQuestions = [];
+
+document.getElementById('synopsisToggle').addEventListener('click', ()=>{
+  document.getElementById('synopsisCard').classList.toggle('open');
+});
+
+function renderSynopsis(){
+  const b = state.selectedBook;
+  const card = document.getElementById('synopsisCard');
+  if(b && b.description){
+    document.getElementById('synopsisBody').innerHTML = `<p>${b.description}</p>`;
+    card.style.display = 'block';
+    card.classList.remove('open');
+  }else{
+    card.style.display = 'none';
+  }
+}
+
 function renderQuestions(){
-  document.getElementById('srToggleWrap').style.display = (state.age==='고등학생') ? 'block' : 'none';
+  const isHS = state.age === '고등학생';
+  document.getElementById('srToggleWrap').style.display = isHS ? 'block' : 'none';
   document.getElementById('srMode').checked = state.srMode;
-  const set = QUESTIONS[state.genre] || QUESTIONS["문학/예술"];
-  const qs = (state.age==='고등학생' && state.srMode) ? set.sr : set.default;
+  updateHSModeLabel();
+
+  renderSynopsis();
+
+  const qs = isHS
+    ? (state.srMode ? HS_MODES['탐구록'] : HS_MODES['자유에세이'])
+    : ((QUESTIONS_BY_AGE[state.age] || QUESTIONS_BY_AGE['초등고학년'])[state.genre] || QUESTIONS_BY_AGE['초등고학년']['문학/예술']);
+
   currentQuestions = qs;
   state.answers = new Array(qs.length).fill('');
   const wrap = document.getElementById('questionsWrap');
@@ -821,16 +896,37 @@ function renderQuestions(){
   qs.forEach((q,i)=>{
     const block = document.createElement('div');
     block.className = 'q-block';
+    const chipsHtml = (q.chips||[]).map(c=>`<button type="button" class="chip" data-idx="${i}">${c}</button>`).join('');
     block.innerHTML = `
-      <span class="q-num">Q${i+1}</span>
-      <div class="q-text">${q}</div>
+      <span class="q-num">${q.label}</span>
+      <div class="q-text">${q.text}</div>
+      <div class="chip-row">${chipsHtml}</div>
       <textarea data-idx="${i}" placeholder="한 문장이면 충분해요"></textarea>`;
     wrap.appendChild(block);
   });
   wrap.querySelectorAll('textarea').forEach(t=>{
     t.addEventListener('input', (e)=>{ state.answers[+e.target.dataset.idx] = e.target.value; });
   });
+  wrap.querySelectorAll('.chip').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = +btn.dataset.idx;
+      const ta = wrap.querySelector(`textarea[data-idx="${idx}"]`);
+      const tag = btn.textContent.trim();
+      ta.value = ta.value ? (ta.value.trim() + ' ' + tag + ' ') : (tag + ' ');
+      state.answers[idx] = ta.value;
+      ta.focus();
+    });
+  });
 }
+
+function updateHSModeLabel(){
+  const on = state.srMode;
+  document.getElementById('hsModeLabel').textContent = on ? '탐구록(생기부) 모드' : '자유 에세이 모드';
+  document.getElementById('hsModeDesc').textContent = on
+    ? '지적 동기 → 핵심 분석 → 진로 연계 → 지적 성찰'
+    : '첫인상 → 인상 깊은 장면 → 나의 시각 → 삶의 변화';
+}
+
 document.getElementById('srMode').addEventListener('change', (e)=>{
   state.srMode = e.target.checked;
   renderQuestions();
@@ -842,7 +938,8 @@ async function runAIDraft(){
   document.getElementById('aiResultWrap').style.display = 'none';
 
   const bookTitle = state.selectedBook ? state.selectedBook.title : "이 책";
-  const answers = currentQuestions.map((q,i)=>({ question: q, answer: state.answers[i] || '' }))
+  const bookSynopsis = state.selectedBook ? (state.selectedBook.description || '') : '';
+  const answers = currentQuestions.map((q,i)=>({ label: q.label, question: q.text, answer: state.answers[i] || '' }))
                                    .filter(a=>a.answer.trim().length>0);
 
   // GAS URL 미설정 시 목업으로 대체 (프론트만 테스트할 때)
@@ -866,6 +963,7 @@ async function runAIDraft(){
         age: state.age,
         srMode: state.srMode,
         bookTitle: bookTitle,
+        bookSynopsis: bookSynopsis,
         answers: answers
       })
     });
@@ -899,7 +997,7 @@ function renderCardNews(){
       <div>
         <div class="cn-title">${b.title}</div>
         <div class="cn-author">${b.author}</div>
-        <div class="cn-badge">${state.age||''}${state.srMode && state.age==='고등학생' ? ' · 생기부 모드':''}</div>
+        <div class="cn-badge">${state.age||''}${state.age==='고등학생' ? (state.srMode ? ' · 탐구록 모드' : ' · 자유에세이 모드') : ''}</div>
       </div>
     </div>
     <div class="cn-body"><p>${(state.draft||'').replace(/</g,'&lt;')}</p></div>
