@@ -253,7 +253,9 @@
     flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     font-size:18px;
+    overflow:hidden;
   }
+  .book-cover img{ width:100%; height:100%; object-fit:cover; }
   .book-info .title{ font-weight:700; font-size:14px; }
   .book-info .author{ font-size:12px; color:var(--text-muted); margin-top:2px; }
   .book-info .cat{
@@ -332,7 +334,9 @@
     background: rgba(255,255,255,.18);
     display:flex; align-items:center; justify-content:center; font-size:20px;
     flex-shrink:0;
+    overflow:hidden;
   }
+  .cardnews .cn-cover img{ width:100%; height:100%; object-fit:cover; }
   .cardnews .cn-title{ font-family:'Gowun Batang', serif; font-size:17px; font-weight:700; line-height:1.35; }
   .cardnews .cn-author{ font-size:12px; opacity:.8; margin-top:4px; }
   .cardnews .cn-badge{
@@ -735,8 +739,9 @@ function renderBookResults(list){
   list.forEach(b=>{
     const el = document.createElement('div');
     el.className = 'book-result' + (state.selectedBook && state.selectedBook.title===b.title ? ' selected':'');
+    const coverInner = b.cover ? `<img src="${b.cover}" alt="">` : (b.emoji || '📖');
     el.innerHTML = `
-      <div class="book-cover">${b.emoji}</div>
+      <div class="book-cover">${coverInner}</div>
       <div class="book-info">
         <div class="title">${b.title}</div>
         <div class="author">${b.author}</div>
@@ -752,10 +757,38 @@ function renderBookResults(list){
 }
 document.getElementById('bookSearchBtn').addEventListener('click', doSearch);
 document.getElementById('bookSearchInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
-function doSearch(){
+
+async function doSearch(){
   const q = document.getElementById('bookSearchInput').value.trim();
-  const filtered = q ? MOCK_BOOKS.filter(b=> b.title.includes(q) || b.author.includes(q)) : MOCK_BOOKS;
-  renderBookResults(filtered);
+  if(!q){
+    renderBookResults(MOCK_BOOKS);
+    return;
+  }
+  const wrap = document.getElementById('bookResults');
+  wrap.innerHTML = '<p class="step-sub" style="margin-top:14px;">검색 중...</p>';
+
+  // GAS URL이 아직 설정 안 됐으면 샘플 데이터로 대체
+  if(!CONFIG.GAS_URL || CONFIG.GAS_URL.includes('여기에')){
+    renderBookResults(MOCK_BOOKS.filter(b=> b.title.includes(q) || b.author.includes(q)));
+    return;
+  }
+
+  try{
+    const res = await fetch(CONFIG.GAS_URL + '?query=' + encodeURIComponent(q));
+    const json = await res.json();
+    if(json.result === 'success'){
+      const books = (json.books || []).map(b=>({
+        title: b.title, author: b.author, cat: b.genre, cover: b.cover
+      }));
+      renderBookResults(books);
+    }else{
+      toast('검색 실패: ' + (json.message || '알 수 없는 오류'));
+      renderBookResults(MOCK_BOOKS.filter(b=> b.title.includes(q) || b.author.includes(q)));
+    }
+  }catch(err){
+    toast('검색 중 오류가 발생했어요. 샘플 데이터로 보여드려요.');
+    renderBookResults(MOCK_BOOKS.filter(b=> b.title.includes(q) || b.author.includes(q)));
+  }
 }
 renderBookResults(MOCK_BOOKS);
 
@@ -822,10 +855,11 @@ document.getElementById('draftEditor').addEventListener('input', (e)=>{ state.dr
 /* ============ STEP 5: card news preview ============ */
 function renderCardNews(){
   const b = state.selectedBook || { title:"제목 없음", author:"", emoji:"📖" };
+  const coverInner = b.cover ? `<img src="${b.cover}" alt="">` : (b.emoji||'📖');
   const dateStr = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
   document.getElementById('cardNews').innerHTML = `
     <div class="cn-top">
-      <div class="cn-cover">${b.emoji||'📖'}</div>
+      <div class="cn-cover">${coverInner}</div>
       <div>
         <div class="cn-title">${b.title}</div>
         <div class="cn-author">${b.author}</div>
